@@ -1,4 +1,5 @@
 import { type Task, tasks } from "@/db/schema";
+import { Status, Label, Priority } from "@prisma/client";
 import {
   createSearchParamsCache,
   parseAsArrayOf,
@@ -10,6 +11,14 @@ import * as z from "zod";
 
 import { flagConfig } from "@/config/flag";
 import { getFiltersStateParser, getSortingStateParser } from "@/lib/parsers";
+
+// Schémas pour conversion entre interface utilisateur (in-progress) et Prisma (in_progress)
+const statusEnumSchema = z.enum(tasks.status.enumValues).transform(value => 
+  value === "in-progress" ? "in_progress" : value
+);
+
+const labelEnumSchema = z.enum(tasks.label.enumValues);
+const priorityEnumSchema = z.enum(tasks.priority.enumValues);
 
 export const searchParamsCache = createSearchParamsCache({
   filterFlag: parseAsStringEnum(
@@ -32,17 +41,17 @@ export const searchParamsCache = createSearchParamsCache({
 
 export const createTaskSchema = z.object({
   title: z.string(),
-  label: z.enum(tasks.label.enumValues),
-  status: z.enum(tasks.status.enumValues),
-  priority: z.enum(tasks.priority.enumValues),
+  label: labelEnumSchema,
+  status: statusEnumSchema,
+  priority: priorityEnumSchema,
   estimatedHours: z.coerce.number().optional(),
 });
 
 export const updateTaskSchema = z.object({
   title: z.string().optional(),
-  label: z.enum(tasks.label.enumValues).optional(),
-  status: z.enum(tasks.status.enumValues).optional(),
-  priority: z.enum(tasks.priority.enumValues).optional(),
+  label: labelEnumSchema.optional(),
+  status: statusEnumSchema.optional(),
+  priority: priorityEnumSchema.optional(),
   estimatedHours: z.coerce.number().optional(),
 });
 

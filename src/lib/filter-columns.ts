@@ -1,265 +1,149 @@
-import { isEmpty } from "@/db/utils";
 import type { ExtendedColumnFilter, JoinOperator } from "@/types/data-table";
-import { addDays, endOfDay, startOfDay } from "date-fns";
-import {
-  type AnyColumn,
-  type SQL,
-  type Table,
-  and,
-  eq,
-  gt,
-  gte,
-  ilike,
-  inArray,
-  lt,
-  lte,
-  ne,
-  not,
-  notIlike,
-  notInArray,
-  or,
-} from "drizzle-orm";
+import { Prisma } from '@prisma/client';
 
-export function filterColumns<T extends Table>({
-  table,
+// Fonction pour construire des filtres dynamiques pour Prisma
+export function filterColumns({
   filters,
   joinOperator,
 }: {
-  table: T;
-  filters: ExtendedColumnFilter<T>[];
+  filters: ExtendedColumnFilter<any>[];
   joinOperator: JoinOperator;
-}): SQL | undefined {
-  const joinFn = joinOperator === "and" ? and : or;
+}): Prisma.TaskWhereInput {
+  if (!filters || filters.length === 0) {
+    return {};
+  }
 
-  const conditions = filters.map((filter) => {
-    const column = getColumn(table, filter.id);
-
+  const conditions = filters.map(filter => {
+    const column = filter.id;
+    
     switch (filter.operator) {
       case "iLike":
-        return filter.variant === "text" && typeof filter.value === "string"
-          ? ilike(column, `%${filter.value}%`)
-          : undefined;
-
+        if (filter.variant === "text" && typeof filter.value === "string") {
+          return {
+            [column]: {
+              contains: filter.value,
+              mode: 'insensitive',
+            },
+          };
+        }
+        break;
+        
       case "notILike":
-        return filter.variant === "text" && typeof filter.value === "string"
-          ? notIlike(column, `%${filter.value}%`)
-          : undefined;
-
+        if (filter.variant === "text" && typeof filter.value === "string") {
+          return {
+            [column]: {
+              not: {
+                contains: filter.value,
+                mode: 'insensitive',
+              },
+            },
+          };
+        }
+        break;
+        
       case "eq":
-        if (column.dataType === "boolean" && typeof filter.value === "string") {
-          return eq(column, filter.value === "true");
+        if (column === "status" && filter.value === "in-progress") {
+          return { status: "in_progress" };
         }
+        
+        if (filter.variant === "boolean" && typeof filter.value === "string") {
+          return { [column]: filter.value === "true" };
+        }
+        
         if (filter.variant === "date" || filter.variant === "dateRange") {
           const date = new Date(Number(filter.value));
           date.setHours(0, 0, 0, 0);
           const end = new Date(date);
           end.setHours(23, 59, 59, 999);
-          return and(gte(column, date), lte(column, end));
+          return {
+            [column]: {
+              gte: date,
+              lte: end,
+            },
+          };
         }
-        return eq(column, filter.value);
-
+        
+        return { [column]: filter.value };
+        
       case "ne":
-        if (column.dataType === "boolean" && typeof filter.value === "string") {
-          return ne(column, filter.value === "true");
+        if (column === "status" && filter.value === "in-progress") {
+          return { status: { not: "in_progress" } };
         }
-        if (filter.variant === "date" || filter.variant === "dateRange") {
-          const date = new Date(Number(filter.value));
-          date.setHours(0, 0, 0, 0);
-          const end = new Date(date);
-          end.setHours(23, 59, 59, 999);
-          return or(lt(column, date), gt(column, end));
-        }
-        return ne(column, filter.value);
-
-      case "inArray":
-        if (Array.isArray(filter.value)) {
-          return inArray(column, filter.value);
-        }
-        return undefined;
-
-      case "notInArray":
-        if (Array.isArray(filter.value)) {
-          return notInArray(column, filter.value);
-        }
-        return undefined;
-
-      case "lt":
-        return filter.variant === "number" || filter.variant === "range"
-          ? lt(column, filter.value)
-          : filter.variant === "date" && typeof filter.value === "string"
-            ? lt(
-                column,
-                (() => {
-                  const date = new Date(Number(filter.value));
-                  date.setHours(23, 59, 59, 999);
-                  return date;
-                })(),
-              )
-            : undefined;
-
-      case "lte":
-        return filter.variant === "number" || filter.variant === "range"
-          ? lte(column, filter.value)
-          : filter.variant === "date" && typeof filter.value === "string"
-            ? lte(
-                column,
-                (() => {
-                  const date = new Date(Number(filter.value));
-                  date.setHours(23, 59, 59, 999);
-                  return date;
-                })(),
-              )
-            : undefined;
-
+        return { [column]: { not: filter.value } };
+        
       case "gt":
-        return filter.variant === "number" || filter.variant === "range"
-          ? gt(column, filter.value)
-          : filter.variant === "date" && typeof filter.value === "string"
-            ? gt(
-                column,
-                (() => {
-                  const date = new Date(Number(filter.value));
-                  date.setHours(0, 0, 0, 0);
-                  return date;
-                })(),
-              )
-            : undefined;
-
+        return { [column]: { gt: filter.value } };
+        
       case "gte":
-        return filter.variant === "number" || filter.variant === "range"
-          ? gte(column, filter.value)
-          : filter.variant === "date" && typeof filter.value === "string"
-            ? gte(
-                column,
-                (() => {
-                  const date = new Date(Number(filter.value));
-                  date.setHours(0, 0, 0, 0);
-                  return date;
-                })(),
-              )
-            : undefined;
-
-      case "isBetween":
-        if (
-          (filter.variant === "date" || filter.variant === "dateRange") &&
-          Array.isArray(filter.value) &&
-          filter.value.length === 2
-        ) {
-          return and(
-            filter.value[0]
-              ? gte(
-                  column,
-                  (() => {
-                    const date = new Date(Number(filter.value[0]));
-                    date.setHours(0, 0, 0, 0);
-                    return date;
-                  })(),
-                )
-              : undefined,
-            filter.value[1]
-              ? lte(
-                  column,
-                  (() => {
-                    const date = new Date(Number(filter.value[1]));
-                    date.setHours(23, 59, 59, 999);
-                    return date;
-                  })(),
-                )
-              : undefined,
-          );
+        return { [column]: { gte: filter.value } };
+        
+      case "lt":
+        return { [column]: { lt: filter.value } };
+        
+      case "lte":
+        return { [column]: { lte: filter.value } };
+        
+      case "in":
+        if (column === "status") {
+          return {
+            [column]: {
+              in: Array.isArray(filter.value) 
+                ? filter.value.map((v: string) => v === "in-progress" ? "in_progress" : v)
+                : filter.value,
+            },
+          };
         }
-
-        if (
-          (filter.variant === "number" || filter.variant === "range") &&
-          Array.isArray(filter.value) &&
-          filter.value.length === 2
-        ) {
-          const firstValue =
-            filter.value[0] && filter.value[0].trim() !== ""
-              ? Number(filter.value[0])
-              : null;
-          const secondValue =
-            filter.value[1] && filter.value[1].trim() !== ""
-              ? Number(filter.value[1])
-              : null;
-
-          if (firstValue === null && secondValue === null) {
-            return undefined;
-          }
-
-          if (firstValue !== null && secondValue === null) {
-            return eq(column, firstValue);
-          }
-
-          if (firstValue === null && secondValue !== null) {
-            return eq(column, secondValue);
-          }
-
-          return and(
-            firstValue !== null ? gte(column, firstValue) : undefined,
-            secondValue !== null ? lte(column, secondValue) : undefined,
-          );
+        return {
+          [column]: {
+            in: filter.value,
+          },
+        };
+        
+      case "notIn":
+        if (column === "status") {
+          return {
+            [column]: {
+              notIn: Array.isArray(filter.value) 
+                ? filter.value.map((v: string) => v === "in-progress" ? "in_progress" : v)
+                : filter.value,
+            },
+          };
         }
-        return undefined;
-
-      case "isRelativeToToday":
-        if (
-          (filter.variant === "date" || filter.variant === "dateRange") &&
-          typeof filter.value === "string"
-        ) {
-          const today = new Date();
-          const [amount, unit] = filter.value.split(" ") ?? [];
-          let startDate: Date;
-          let endDate: Date;
-
-          if (!amount || !unit) return undefined;
-
-          switch (unit) {
-            case "days":
-              startDate = startOfDay(addDays(today, Number.parseInt(amount)));
-              endDate = endOfDay(startDate);
-              break;
-            case "weeks":
-              startDate = startOfDay(
-                addDays(today, Number.parseInt(amount) * 7),
-              );
-              endDate = endOfDay(addDays(startDate, 6));
-              break;
-            case "months":
-              startDate = startOfDay(
-                addDays(today, Number.parseInt(amount) * 30),
-              );
-              endDate = endOfDay(addDays(startDate, 29));
-              break;
-            default:
-              return undefined;
-          }
-
-          return and(gte(column, startDate), lte(column, endDate));
-        }
-        return undefined;
-
+        return {
+          [column]: {
+            notIn: filter.value,
+          },
+        };
+        
       case "isEmpty":
-        return isEmpty(column);
-
+        return {
+          OR: [
+            { [column]: null },
+            { [column]: "" },
+            ...(Array.isArray(filter.value) ? [{ [column]: [] }] : []),
+          ],
+        };
+        
       case "isNotEmpty":
-        return not(isEmpty(column));
-
-      default:
-        throw new Error(`Unsupported operator: ${filter.operator}`);
+        return {
+          NOT: {
+            OR: [
+              { [column]: null },
+              { [column]: "" },
+              ...(Array.isArray(filter.value) ? [{ [column]: [] }] : []),
+            ],
+          },
+        };
     }
-  });
+    
+    return {};
+  }).filter(condition => Object.keys(condition).length > 0);
 
-  const validConditions = conditions.filter(
-    (condition) => condition !== undefined,
-  );
+  if (conditions.length === 0) {
+    return {};
+  }
 
-  return validConditions.length > 0 ? joinFn(...validConditions) : undefined;
-}
-
-export function getColumn<T extends Table>(
-  table: T,
-  columnKey: keyof T,
-): AnyColumn {
-  return table[columnKey] as AnyColumn;
-}
+  return {
+    [joinOperator]: conditions,
+  };
+} 

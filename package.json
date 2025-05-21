@@ -4,23 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "clean": "rimraf --glob **/node_modules **/dist **/.next pnpm-lock.yaml **/.tsbuildinfo",
+    "clean": "rimraf --glob **/node_modules **/dist **/.next bun.lockb **/.tsbuildinfo",
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm lint && pnpm typecheck",
-    "shadcn": "pnpm dlx shadcn@latest",
+    "check": "bun lint && bun typecheck",
+    "shadcn": "bunx shadcn@latest",
     "build:registry": "shadcn build",
-    "db:generate": "dotenv drizzle-kit generate",
-    "db:introspect": "dotenv drizzle-kit introspect",
-    "db:push": "dotenv drizzle-kit push",
-    "db:migrate": "dotenv tsx src/db/migrate.ts",
-    "db:drop-migration": "drizzle-kit drop",
-    "db:seed": "dotenv tsx src/db/seed.ts",
-    "db:studio": "dotenv drizzle-kit studio"
+    "prisma:generate": "dotenv prisma generate",
+    "prisma:migrate": "dotenv tsx src/db/prisma.migrate.ts",
+    "prisma:seed": "dotenv tsx src/db/prisma.seed.ts",
+    "prisma:studio": "dotenv prisma studio"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -47,7 +44,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "drizzle-orm": "^0.43.1",
     "export-to-csv": "^1.4.0",
     "geist": "^1.3.1",
     "lucide-react": "^0.503.0",
@@ -71,15 +67,16 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@faker-js/faker": "^9.7.0",
+    "@prisma/client": "^5.12.0",
     "@tailwindcss/postcss": "^4.1.4",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^22.15.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "dotenv-cli": "^8.0.0",
-    "drizzle-kit": "^0.31.0",
     "pg": "^8.15.5",
     "postcss": "^8.5.3",
+    "prisma": "^5.12.0",
     "rimraf": "^6.0.1",
     "tailwindcss": "^4.1.4",
     "tsx": "^4.19.3",
@@ -89,5 +86,5 @@
   "ct3aMetadata": {
     "initVersion": "7.23.1"
   },
-  "packageManager": "pnpm@10.9.0"
+  "packageManager": "bun@1.2.9"
 }

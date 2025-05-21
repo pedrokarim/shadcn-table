@@ -1,8 +1,12 @@
+import { PrismaClient } from '@prisma/client'
 import { env } from "@/env.js";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 
-import * as schema from "./schema";
+// Utilisation d'une instance singleton pour éviter plusieurs connexions en développement
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined
+}
 
-const client = postgres(env.DATABASE_URL);
-export const db = drizzle(client, { schema });
+export const prisma = global.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma 

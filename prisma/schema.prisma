@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  title          String?
+  status         Status   @default(todo)
+  label          Label    @default(bug)
+  priority       Priority @default(low)
+  estimatedHours Float    @default(0) @map("estimated_hours")
+  archived       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("shadcn_tasks")
+}
+
+enum Status {
+  todo        @map("todo")
+  in_progress @map("in-progress")
+  done        @map("done")
+  canceled    @map("canceled")
+}
+
+enum Label {
+  bug          @map("bug")
+  feature      @map("feature")
+  enhancement  @map("enhancement")
+  documentation @map("documentation")
+}
+
+enum Priority {
+  low    @map("low")
+  medium @map("medium")
+  high   @map("high")
+} 

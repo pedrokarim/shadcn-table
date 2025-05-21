@@ -1,4 +1,7 @@
-import type { SQL } from "drizzle-orm";
+import type { Prisma } from '@prisma/client';
+
+// Type similaire à SQL de Drizzle pour maintenir la compatibilité
+export type SQL = any;
 
 export type Prettify<T> = {
   [K in keyof T]: T[K];

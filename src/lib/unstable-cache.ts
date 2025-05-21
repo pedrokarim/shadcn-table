@@ -16,4 +16,4 @@ export const unstable_cache = <Inputs extends unknown[], Output>(
     revalidate?: number | false;
     tags?: string[];
   },
-) => cache(next_unstable_cache(cb, keyParts, options));
+) => cache(next_unstable_cache(cb, keyParts, options)); 
